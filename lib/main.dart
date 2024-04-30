@@ -5,24 +5,12 @@ void main() {
 }
 
 class Registro {
-  late String nombre;
   late DateTime fechaHora;
   late List<String> opcionesSeleccionadas;
 
   Registro({
-    required this.nombre,
     required this.fechaHora,
     required this.opcionesSeleccionadas,
-  });
-}
-
-class Alumno {
-  late String nombre;
-  late String materia;
-
-  Alumno({
-    required this.nombre,
-    required this.materia,
   });
 }
 
@@ -42,23 +30,18 @@ class RegistroPage extends StatefulWidget {
 }
 
 class _RegistroPageState extends State<RegistroPage> {
-  final TextEditingController _nombreController = TextEditingController();
   List<String> _opcionesSeleccionadas = [];
   List<Registro> _registros = [];
-  List<Alumno> _alumnos = [];
 
   void _guardarRegistro() {
-    String nombre = _nombreController.text;
     DateTime now = DateTime.now();
     Registro nuevoRegistro = Registro(
-      nombre: nombre,
       fechaHora: now,
       opcionesSeleccionadas: List.from(_opcionesSeleccionadas),
     );
 
     setState(() {
       _registros.add(nuevoRegistro);
-      _nombreController.clear();
       _opcionesSeleccionadas.clear();
     });
 
@@ -67,22 +50,85 @@ class _RegistroPageState extends State<RegistroPage> {
     );
   }
 
-  void _registrarAlumno(String nombre, String materia) {
-    setState(() {
-      _alumnos.add(Alumno(nombre: nombre, materia: materia));
-    });
-  }
-
-  void _eliminarAlumno(int index) {
-    setState(() {
-      _alumnos.removeAt(index);
-    });
-  }
-
-  void _eliminarRegistro(int index) {
-    setState(() {
-      _registros.removeAt(index);
-    });
+  void _mostrarDialogoDeBusqueda(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Buscar en el Registro'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                decoration: InputDecoration(labelText: 'Ingrese el término de búsqueda'),
+                onFieldSubmitted: (value) {
+                  if (value.isNotEmpty) {
+                    // Buscar la opción ingresada y dirigir al usuario a esa página
+                    switch (value.toLowerCase()) {
+                      case 'consulta de asistencia':
+                        Navigator.pop(context);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => ConsultaAsistenciaPage(registros: _registros),
+                          ),
+                        );
+                        break;
+                      case 'consulta de inasistencias':
+                        Navigator.pop(context);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => ConsultaInasistenciaPage(registros: _registros),
+                          ),
+                        );
+                        break;
+                      case 'asistencia entrada y salida':
+                        Navigator.pop(context);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => AsistenciaMaestroPage(
+                              asistencias: _registros
+                                  .where((registro) => registro.opcionesSeleccionadas.contains('Presente'))
+                                  .map((registro) => Registro(
+                                        fechaHora: registro.fechaHora,
+                                        opcionesSeleccionadas: registro.opcionesSeleccionadas,
+                                      ))
+                                  .toList(),
+                            ),
+                          ),
+                        );
+                        break;
+                      default:
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('La opción ingresada no existe')),
+                        );
+                        break;
+                    }
+                  }
+                },
+              ),
+            ],
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: Text('Cancelar'),
+            ),
+            TextButton(
+              onPressed: () {
+                // No es necesario realizar acciones adicionales aquí ya que la lógica está en el onFieldSubmitted
+                Navigator.pop(context);
+              },
+              child: Text('Buscar'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -134,23 +180,6 @@ class _RegistroPageState extends State<RegistroPage> {
               },
             ),
             ListTile(
-              leading: Icon(Icons.person_add),
-              title: Text('Registro de Alumnos'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => RegistroAlumnosPage(
-                      alumnos: _alumnos,
-                      registrarAlumno: _registrarAlumno,
-                      eliminarAlumno: _eliminarAlumno,
-                    ),
-                  ),
-                );
-              },
-            ),
-            ListTile(
               leading: Icon(Icons.event_note),
               title: Text('Asistencia Entrada y Salida'),
               onTap: () {
@@ -161,15 +190,22 @@ class _RegistroPageState extends State<RegistroPage> {
                     builder: (context) => AsistenciaMaestroPage(
                       asistencias: _registros
                           .where((registro) => registro.opcionesSeleccionadas.contains('Presente'))
-                          .map((registro) => AsistenciaMaestro(
-                                nombre: registro.nombre,
+                          .map((registro) => Registro(
                                 fechaHora: registro.fechaHora,
+                                opcionesSeleccionadas: registro.opcionesSeleccionadas,
                               ))
                           .toList(),
-                      eliminarRegistro: _eliminarRegistro,
                     ),
                   ),
                 );
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.search),
+              title: Text('Filtro de Búsqueda'),
+              onTap: () {
+                Navigator.pop(context);
+                _mostrarDialogoDeBusqueda(context);
               },
             ),
           ],
@@ -180,11 +216,6 @@ class _RegistroPageState extends State<RegistroPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            TextFormField(
-              controller: _nombreController,
-              decoration: InputDecoration(labelText: 'Nombre del maestro'),
-            ),
-            SizedBox(height: 16.0),
             Text('Selecciona las opciones:'),
             CheckboxListTile(
               title: Text('Presente'),
@@ -268,11 +299,10 @@ class ConsultaAsistenciaPage extends StatelessWidget {
               itemBuilder: (context, index) {
                 Registro registro = registros[index];
                 return ListTile(
-                  title: Text('Maestro: ${registro.nombre}'),
+                  title: Text('Fecha y Hora: ${registro.fechaHora}'),
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Fecha y Hora: ${registro.fechaHora}'),
                       Text('Asistencia: ${registro.opcionesSeleccionadas.join(', ')}'),
                     ],
                   ),
@@ -304,11 +334,10 @@ class ConsultaInasistenciaPage extends StatelessWidget {
               itemBuilder: (context, index) {
                 Registro registro = inasistencias[index];
                 return ListTile(
-                  title: Text('Maestro: ${registro.nombre}'),
+                  title: Text('Fecha y Hora: ${registro.fechaHora}'),
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Fecha y Hora: ${registro.fechaHora}'),
                       Text('Asistencia: ${registro.opcionesSeleccionadas.join(', ')}'),
                     ],
                   ),
@@ -319,120 +348,10 @@ class ConsultaInasistenciaPage extends StatelessWidget {
   }
 }
 
-class RegistroAlumnosPage extends StatefulWidget {
-  final List<Alumno> alumnos;
-  final Function(String, String) registrarAlumno;
-  final Function(int) eliminarAlumno;
-
-  RegistroAlumnosPage({
-    required this.alumnos,
-    required this.registrarAlumno,
-    required this.eliminarAlumno,
-  });
-
-  @override
-  _RegistroAlumnosPageState createState() => _RegistroAlumnosPageState();
-}
-
-class _RegistroAlumnosPageState extends State<RegistroAlumnosPage> {
-  late String _nombre = '';
-  late String _materia = '';
-
-  @override
-  Widget build(BuildContext context) {
-    Map<String, List<Alumno>> alumnosPorMateria = {};
-
-    for (var alumno in widget.alumnos) {
-      if (!alumnosPorMateria.containsKey(alumno.materia)) {
-        alumnosPorMateria[alumno.materia] = [];
-      }
-      alumnosPorMateria[alumno.materia]!.add(alumno);
-    }
-
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Registro de Alumnos'),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            TextFormField(
-              onChanged: (value) => _nombre = value,
-              decoration: InputDecoration(labelText: 'Nombre del alumno'),
-            ),
-            TextFormField(
-              onChanged: (value) => _materia = value,
-              decoration: InputDecoration(labelText: 'Materia'),
-            ),
-            SizedBox(height: 16.0),
-            ElevatedButton(
-              onPressed: () {
-                widget.registrarAlumno(_nombre, _materia);
-                setState(() {
-                  _nombre = '';
-                  _materia = '';
-                });
-              },
-              child: Text('Registrar Alumno'),
-            ),
-            SizedBox(height: 16.0),
-            Text(
-              'Alumnos Registrados:',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            Expanded(
-              child: ListView.builder(
-                itemCount: alumnosPorMateria.length,
-                itemBuilder: (context, index) {
-                  String materia = alumnosPorMateria.keys.elementAt(index);
-                  List<Alumno> alumnosMateria = alumnosPorMateria[materia]!;
-                  return Card(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: Text(
-                            materia,
-                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                        ListView.builder(
-                          shrinkWrap: true,
-                          physics: NeverScrollableScrollPhysics(),
-                          itemCount: alumnosMateria.length,
-                          itemBuilder: (context, index) {
-                            Alumno alumno = alumnosMateria[index];
-                            return ListTile(
-                              title: Text(alumno.nombre),
-                              subtitle: Text('Materia: ${alumno.materia}'),
-                              trailing: IconButton(
-                                icon: Icon(Icons.delete),
-                                onPressed: () => widget.eliminarAlumno(index),
-                              ),
-                            );
-                          },
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class AsistenciaMaestroPage extends StatelessWidget {
-  final List<AsistenciaMaestro> asistencias;
-  final Function(int) eliminarRegistro;
+  final List<Registro> asistencias;
 
-  AsistenciaMaestroPage({required this.asistencias, required this.eliminarRegistro});
+  AsistenciaMaestroPage({required this.asistencias});
 
   @override
   Widget build(BuildContext context) {
@@ -440,48 +359,28 @@ class AsistenciaMaestroPage extends StatelessWidget {
       appBar: AppBar(
         title: Text('Asistencia Entrada y Salida'),
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: asistencias.isEmpty
-                ? Center(child: Text('No hay registros de asistencia de maestros'))
-                : ListView.builder(
-                    itemCount: asistencias.length,
-                    itemBuilder: (context, index) {
-                      AsistenciaMaestro asistencia = asistencias[index];
-                      return ListTile(
-                        title: Text('Maestro: ${asistencia.nombre}'),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Fecha y Hora: ${asistencia.fechaHora}'),
-                            Text(
-                              'ASISTENCIA REGISTRADA',
-                              style: TextStyle(
-                                color: Colors.green,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            ElevatedButton(
-                              onPressed: () => eliminarRegistro(index),
-                              child: Text('Eliminar'),
-                            ),
-                          ],
+      body: asistencias.isEmpty
+          ? Center(child: Text('No hay registros de asistencia de maestros'))
+          : ListView.builder(
+              itemCount: asistencias.length,
+              itemBuilder: (context, index) {
+                Registro asistencia = asistencias[index];
+                return ListTile(
+                  title: Text('Fecha y Hora: ${asistencia.fechaHora}'),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Asistencia: ${asistencia.opcionesSeleccionadas.join(', ')}'),
+                      if (asistencia.opcionesSeleccionadas.contains('Presente'))
+                        Text(
+                          'Asistencia registrada',
+                          style: TextStyle(color: Colors.green),
                         ),
-                      );
-                    },
+                    ],
                   ),
-          ),
-        ],
-      ),
+                );
+              },
+            ),
     );
   }
 }
-
-class AsistenciaMaestro {
-  final String nombre;
-  final DateTime fechaHora;
-
-  AsistenciaMaestro({required this.nombre, required this.fechaHora});
-}
-
